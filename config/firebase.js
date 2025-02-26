@@ -1,5 +1,7 @@
 const admin = require("firebase-admin");
-const serviceAccount = require("./cuddleup-21617-firebase-adminsdk-fbsvc-8a9a6a7826.json");
+
+// Load credentials from environment variables
+const serviceAccount = JSON.parse(process.env.FIREBASE_CREDENTIALS);
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
