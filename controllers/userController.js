@@ -185,24 +185,28 @@ const getUser = async (req, res) => {
     mostActiveHour =
       mostActiveHour === -1 ? null : formatHourRange(mostActiveHour);
 
-    function formatHourRange(hour) {
-      const startHour = hour;
-      const endHour = hour + 1;
-
-      const startPeriod = startHour >= 12 ? "PM" : "AM";
-      const endPeriod = endHour >= 12 ? "PM" : "AM";
-
-      const startFormatted = formatHourWithAMPM(startHour, startPeriod);
-      const endFormatted = formatHourWithAMPM(endHour, endPeriod);
-
-      return `${startFormatted} - ${endFormatted}`;
-    }
-
-    function formatHourWithAMPM(hour, period) {
-      let displayHour = hour % 12; // Convert to 12-hour format
-      if (displayHour === 0) displayHour = 12; // Handle midnight and noon case
-      return `${displayHour}:00 ${period}`;
-    }
+      function formatHourRange(hour) {
+        const startHour = hour;
+        const endHour = hour + 1;
+      
+        // Calculate AM/PM periods
+        const startPeriod = startHour >= 12 ? 'PM' : 'AM';
+        const endPeriod = endHour >= 12 ? 'PM' : 'AM';
+      
+        // Adjust hours to 12-hour format
+        const startFormatted = formatHourWithAMPM(startHour, startPeriod);
+        const endFormatted = formatHourWithAMPM(endHour, endPeriod);
+      
+        return `${startFormatted} - ${endFormatted}`;
+      }
+      
+      function formatHourWithAMPM(hour, period) {
+        // Adjust hour for 12-hour format (0 becomes 12 for midnight, 13 becomes 1 for 1 PM, etc.)
+        let displayHour = hour % 12; 
+        if (displayHour === 0) displayHour = 12; // Handle midnight (0) and noon (12)
+        
+        return `${displayHour}:00 ${period}`;
+      }
 
     res.json({
       user: userData,
