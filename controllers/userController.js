@@ -13,6 +13,9 @@ const registerUser = async (req, res) => {
       return res.status(400).json({ error: "All fields are required." });
     }
 
+    const { photoURL } = req.body;
+    const image = photoURL ? photoURL : "";
+
     const currentDate = new Date();
 
     const monthName = currentDate.toLocaleString("default", { month: "long" });
@@ -26,6 +29,7 @@ const registerUser = async (req, res) => {
         gender,
         city,
         country,
+        photoURL: image,
         createdAt: formattedDate,
       },
       { merge: true } // Prevents overwriting existing data
@@ -59,6 +63,7 @@ const getUser = async (req, res) => {
     if (!userDoc.exists)
       return res.status(404).json({ error: "User not found." });
     const userData = userDoc.data();
+    console.log(userData.name);
 
     // Fetch moods ordered by date (descending)
     const moodsSnapshot = await db
@@ -76,6 +81,7 @@ const getUser = async (req, res) => {
 
     if (moods.length === 0) {
       return res.json({
+        user:userData,
         totalMoods: 0,
         mostFrequentMood: null,
         mostFrequentMoodPercentage: 0,
@@ -185,30 +191,30 @@ const getUser = async (req, res) => {
     mostActiveHour =
       mostActiveHour === -1 ? null : formatHourRange(mostActiveHour);
 
-      function formatHourRange(hour) {
-        const startHour = hour;
-        const endHour = hour + 1;
-      
-        // Calculate AM/PM periods
-        const startPeriod = startHour >= 12 ? 'PM' : 'AM';
-        const endPeriod = endHour >= 12 ? 'PM' : 'AM';
-      
-        // Adjust hours to 12-hour format
-        const startFormatted = formatHourWithAMPM(startHour, startPeriod);
-        const endFormatted = formatHourWithAMPM(endHour, endPeriod);
-      
-        return `${startFormatted} - ${endFormatted}`;
-      }
-      
-      function formatHourWithAMPM(hour, period) {
-        // Adjust hour for 12-hour format (0 becomes 12 for midnight, 13 becomes 1 for 1 PM, etc.)
-        let displayHour = hour % 12; 
-        if (displayHour === 0) displayHour = 12; // Handle midnight (0) and noon (12)
-        
-        return `${displayHour}:00 ${period}`;
-      }
+    function formatHourRange(hour) {
+      const startHour = hour;
+      const endHour = hour + 1;
 
-    res.json({
+      // Calculate AM/PM periods
+      const startPeriod = startHour >= 12 ? "PM" : "AM";
+      const endPeriod = endHour >= 12 ? "PM" : "AM";
+
+      // Adjust hours to 12-hour format
+      const startFormatted = formatHourWithAMPM(startHour, startPeriod);
+      const endFormatted = formatHourWithAMPM(endHour, endPeriod);
+
+      return `${startFormatted} - ${endFormatted}`;
+    }
+
+    function formatHourWithAMPM(hour, period) {
+      // Adjust hour for 12-hour format (0 becomes 12 for midnight, 13 becomes 1 for 1 PM, etc.)
+      let displayHour = hour % 12;
+      if (displayHour === 0) displayHour = 12; // Handle midnight (0) and noon (12)
+
+      return `${displayHour}:00 ${period}`;
+    }
+
+    const responsePayload = {
       user: userData,
       totalMoods: moods.length,
       mostFrequentMood,
@@ -221,7 +227,9 @@ const getUser = async (req, res) => {
       saddestDay,
       moodChangeRate,
       mostActiveTime: mostActiveHour,
-    });
+    };
+    console.log("Final Response:", JSON.stringify(responsePayload, null, 2));
+    res.json(responsePayload);
   } catch (error) {
     console.error("Error fetching user insights:", error);
     res.status(500).json({ error: "Error fetching user insights." });
