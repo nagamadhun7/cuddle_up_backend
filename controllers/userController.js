@@ -38,8 +38,6 @@ const registerUser = async (req, res) => {
   }
 };
 
-
-
 // const getUser = async (req, res) => {
 //   const userId = req.user.uid;
 
@@ -58,7 +56,8 @@ const getUser = async (req, res) => {
   try {
     // Fetch user document
     const userDoc = await db.collection("users").doc(userId).get();
-    if (!userDoc.exists) return res.status(404).json({ error: "User not found." });
+    if (!userDoc.exists)
+      return res.status(404).json({ error: "User not found." });
     const userData = userDoc.data();
 
     // Fetch moods ordered by date (descending)
@@ -68,11 +67,11 @@ const getUser = async (req, res) => {
       .collection("moods")
       .orderBy("createdAt", "desc")
       .get();
-    
-    const moods = moodsSnapshot.docs.map(doc => ({
+
+    const moods = moodsSnapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
-      createdAt: doc.data().createdAt.toDate() // Convert Firestore timestamp to JS Date
+      createdAt: doc.data().createdAt.toDate(), // Convert Firestore timestamp to JS Date
     }));
 
     if (moods.length === 0) {
@@ -87,7 +86,7 @@ const getUser = async (req, res) => {
         happiestDay: null,
         saddestDay: null,
         moodChangeRate: 0,
-        mostActiveTime: null
+        mostActiveTime: null,
       });
     }
 
@@ -149,7 +148,10 @@ const getUser = async (req, res) => {
         mostFrequentMoodCount = count;
       }
     }
-    const mostFrequentMoodPercentage = ((mostFrequentMoodCount / moods.length) * 100).toFixed(1);
+    const mostFrequentMoodPercentage = (
+      (mostFrequentMoodCount / moods.length) *
+      100
+    ).toFixed(1);
 
     // Find happiest & saddest day
     let happiestDay = null;
@@ -169,17 +171,41 @@ const getUser = async (req, res) => {
     }
 
     // Mood stability score
-    const moodStabilityScore = Math.max(0, 100 - ((moodSwings / moods.length) * 100)).toFixed(1);
+    const moodStabilityScore = Math.max(
+      0,
+      100 - (moodSwings / moods.length) * 100
+    ).toFixed(1);
 
     // Mood change rate
     const moodChangeRate = (moodSwings / (daysTracked.size || 1)).toFixed(1);
 
     // Most active logging hour
     let mostActiveHour = moodByHour.indexOf(Math.max(...moodByHour));
-    mostActiveHour = mostActiveHour === -1 ? null : `${mostActiveHour}:00 - ${mostActiveHour + 1}:00`;
+    // mostActiveHour = mostActiveHour === -1 ? null : `${mostActiveHour}:00 - ${mostActiveHour + 1}:00`;
+    mostActiveHour =
+      mostActiveHour === -1 ? null : formatHourRange(mostActiveHour);
+
+    function formatHourRange(hour) {
+      const startHour = hour;
+      const endHour = hour + 1;
+
+      const startPeriod = startHour >= 12 ? "PM" : "AM";
+      const endPeriod = endHour >= 12 ? "PM" : "AM";
+
+      const startFormatted = formatHourWithAMPM(startHour, startPeriod);
+      const endFormatted = formatHourWithAMPM(endHour, endPeriod);
+
+      return `${startFormatted} - ${endFormatted}`;
+    }
+
+    function formatHourWithAMPM(hour, period) {
+      let displayHour = hour % 12; // Convert to 12-hour format
+      if (displayHour === 0) displayHour = 12; // Handle midnight and noon case
+      return `${displayHour}:00 ${period}`;
+    }
 
     res.json({
-      user:userData,
+      user: userData,
       totalMoods: moods.length,
       mostFrequentMood,
       mostFrequentMoodPercentage,
@@ -190,7 +216,7 @@ const getUser = async (req, res) => {
       happiestDay,
       saddestDay,
       moodChangeRate,
-      mostActiveTime: mostActiveHour
+      mostActiveTime: mostActiveHour,
     });
   } catch (error) {
     console.error("Error fetching user insights:", error);
@@ -198,20 +224,20 @@ const getUser = async (req, res) => {
   }
 };
 
-
-
 const updateUser = async (req, res) => {
   const userId = req.user.uid;
   const { name, age, gender, city, country } = req.body;
 
   try {
-    await db.collection("users").doc(userId).update({ name, age, gender, city, country });
+    await db
+      .collection("users")
+      .doc(userId)
+      .update({ name, age, gender, city, country });
     res.json({ message: "User updated successfully." });
   } catch (error) {
     res.status(500).json({ error: "Error updating user data." });
   }
 };
-
 
 const storeMood = async (req, res) => {
   const { mood, reason } = req.body;
@@ -224,28 +250,32 @@ const storeMood = async (req, res) => {
 
   try {
     const currentDate = new Date();
-    const hour = new Date().toLocaleString("en-US", { hour: "numeric", hour12: false, timeZone: "America/New_York" });
+    const hour = new Date().toLocaleString("en-US", {
+      hour: "numeric",
+      hour12: false,
+      timeZone: "America/New_York",
+    });
 
     // const hour = currentDate.getHours();
-    let timeOfDay = '';
+    let timeOfDay = "";
 
     // Determine time of day based on more granular time slots
     if (hour >= 5 && hour < 8) {
-      timeOfDay = 'earlyMorning';
+      timeOfDay = "earlyMorning";
     } else if (hour >= 8 && hour < 12) {
-      timeOfDay = 'lateMorning';
+      timeOfDay = "lateMorning";
     } else if (hour >= 12 && hour < 14) {
-      timeOfDay = 'earlyAfternoon';
+      timeOfDay = "earlyAfternoon";
     } else if (hour >= 14 && hour < 17) {
-      timeOfDay = 'lateAfternoon';
+      timeOfDay = "lateAfternoon";
     } else if (hour >= 17 && hour < 18.5) {
-      timeOfDay = 'earlyEvening';
+      timeOfDay = "earlyEvening";
     } else if (hour >= 18.5 && hour < 20) {
-      timeOfDay = 'lateEvening';
+      timeOfDay = "lateEvening";
     } else if (hour >= 20 && hour < 24) {
-      timeOfDay = 'night';
+      timeOfDay = "night";
     } else if (hour >= 0 && hour < 5) {
-      timeOfDay = 'lateNight';
+      timeOfDay = "lateNight";
     }
 
     // Store mood, reason, and time of day in Firestore
@@ -263,6 +293,4 @@ const storeMood = async (req, res) => {
   }
 };
 
-
 module.exports = { registerUser, getUser, updateUser, storeMood };
-
