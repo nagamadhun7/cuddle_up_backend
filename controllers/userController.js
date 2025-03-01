@@ -40,18 +40,165 @@ const registerUser = async (req, res) => {
 
 
 
+// const getUser = async (req, res) => {
+//   const userId = req.user.uid;
+
+//   try {
+//     const userDoc = await db.collection("users").doc(userId).get();
+//     if (!userDoc.exists) return res.status(404).json({ error: "User not found." });
+
+//     res.json(userDoc.data());
+//   } catch (error) {
+//     res.status(500).json({ error: "Error fetching user data." });
+//   }
+// };
 const getUser = async (req, res) => {
   const userId = req.user.uid;
 
   try {
+    // Fetch user document
     const userDoc = await db.collection("users").doc(userId).get();
     if (!userDoc.exists) return res.status(404).json({ error: "User not found." });
+    const userData = userDoc.data();
 
-    res.json(userDoc.data());
+    // Fetch moods ordered by date (descending)
+    const moodsSnapshot = await db
+      .collection("users")
+      .doc(userId)
+      .collection("moods")
+      .orderBy("createdAt", "desc")
+      .get();
+    
+    const moods = moodsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt.toDate() // Convert Firestore timestamp to JS Date
+    }));
+
+    if (moods.length === 0) {
+      return res.json({
+        totalMoods: 0,
+        mostFrequentMood: null,
+        mostFrequentMoodPercentage: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        moodSwings: 0,
+        moodStabilityScore: 0,
+        happiestDay: null,
+        saddestDay: null,
+        moodChangeRate: 0,
+        mostActiveTime: null
+      });
+    }
+
+    let moodCounts = {};
+    let moodSwings = 0;
+    let longestStreak = 0;
+    let currentStreak = 0;
+    let lastDate = null;
+    let streakCounter = 0;
+    let daysTracked = new Set();
+    let moodByDay = {};
+    let moodByHour = new Array(24).fill(0);
+
+    for (let i = 0; i < moods.length; i++) {
+      const { mood, createdAt } = moods[i];
+
+      // Count mood occurrences
+      moodCounts[mood] = (moodCounts[mood] || 0) + 1;
+
+      // Mood swings count
+      if (i > 0 && moods[i - 1].mood !== mood) {
+        moodSwings++;
+      }
+
+      // Streak calculation
+      const currentDate = createdAt.toISOString().split("T")[0]; // Get YYYY-MM-DD format
+      daysTracked.add(currentDate);
+
+      if (lastDate) {
+        const diffDays = (lastDate - createdAt) / (1000 * 60 * 60 * 24);
+        if (diffDays === 1) {
+          streakCounter++;
+          longestStreak = Math.max(longestStreak, streakCounter);
+        } else if (diffDays > 1) {
+          streakCounter = 1;
+        }
+      } else {
+        streakCounter = 1;
+      }
+      lastDate = createdAt;
+
+      // Store mood by day of the week
+      const dayOfWeek = createdAt.toLocaleString("en-US", { weekday: "long" });
+      moodByDay[dayOfWeek] = (moodByDay[dayOfWeek] || 0) + 1;
+
+      // Store mood by hour of the day
+      const hour = createdAt.getHours();
+      moodByHour[hour]++;
+    }
+
+    currentStreak = streakCounter;
+
+    // Find most frequent mood
+    let mostFrequentMood = null;
+    let mostFrequentMoodCount = 0;
+    for (const [mood, count] of Object.entries(moodCounts)) {
+      if (count > mostFrequentMoodCount) {
+        mostFrequentMood = mood;
+        mostFrequentMoodCount = count;
+      }
+    }
+    const mostFrequentMoodPercentage = ((mostFrequentMoodCount / moods.length) * 100).toFixed(1);
+
+    // Find happiest & saddest day
+    let happiestDay = null;
+    let saddestDay = null;
+    let maxMoodCount = 0;
+    let minMoodCount = Infinity;
+
+    for (const [day, count] of Object.entries(moodByDay)) {
+      if (count > maxMoodCount) {
+        happiestDay = day;
+        maxMoodCount = count;
+      }
+      if (count < minMoodCount) {
+        saddestDay = day;
+        minMoodCount = count;
+      }
+    }
+
+    // Mood stability score
+    const moodStabilityScore = Math.max(0, 100 - ((moodSwings / moods.length) * 100)).toFixed(1);
+
+    // Mood change rate
+    const moodChangeRate = (moodSwings / (daysTracked.size || 1)).toFixed(1);
+
+    // Most active logging hour
+    let mostActiveHour = moodByHour.indexOf(Math.max(...moodByHour));
+    mostActiveHour = mostActiveHour === -1 ? null : `${mostActiveHour}:00 - ${mostActiveHour + 1}:00`;
+
+    res.json({
+      user:userData,
+      totalMoods: moods.length,
+      mostFrequentMood,
+      mostFrequentMoodPercentage,
+      currentStreak,
+      longestStreak,
+      moodSwings,
+      moodStabilityScore,
+      happiestDay,
+      saddestDay,
+      moodChangeRate,
+      mostActiveTime: mostActiveHour
+    });
   } catch (error) {
-    res.status(500).json({ error: "Error fetching user data." });
+    console.error("Error fetching user insights:", error);
+    res.status(500).json({ error: "Error fetching user insights." });
   }
 };
+
+
 
 const updateUser = async (req, res) => {
   const userId = req.user.uid;
