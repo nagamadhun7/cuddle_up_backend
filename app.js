@@ -18,6 +18,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/reasons", reasonsRoutes);
 app.use("/api/mood", moodRoutes);
 app.use("/api/multimodal", multiModalRoutes); 
+app.use("/api/guest/multimodal", multiModalRoutes); 
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
