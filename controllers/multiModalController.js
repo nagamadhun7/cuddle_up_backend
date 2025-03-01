@@ -167,10 +167,19 @@ const analyzeAudioMood = async (req, res) => {
             resolve(emotions);
           }
         }, 3000);
+
+        setTimeout(() => {
+          clearInterval(interval);
+          resolve(null);
+        }, 30000);
       });
     };
     
     const emotions = await waitForEmotionAnalysis();
+
+    if (!emotions) {
+      return res.status(504).json({ error: "Analysis timed out" });
+    }
     
     // Step 4: Determine dominant emotion
     let dominantEmotion = null;
@@ -247,10 +256,19 @@ const analyzeImageMood = async (req, res) => {
             resolve(emotions);
           }
         }, 3000);
+
+        setTimeout(() => {
+          clearInterval(interval);
+          resolve(null);
+        }, 30000);
       });
     };
     
     const emotions = await waitForEmotionAnalysis();
+
+    if (!emotions) {
+      return res.status(504).json({ error: "Analysis timed out" });
+    }
     
     // Step 4: Determine dominant emotion
     let dominantEmotion = null;
