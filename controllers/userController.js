@@ -77,7 +77,9 @@ const storeMood = async (req, res) => {
 
   try {
     const currentDate = new Date();
-    const hour = currentDate.getHours();
+    const hour = new Date().toLocaleString("en-US", { hour: "numeric", hour12: false, timeZone: "America/New_York" });
+
+    // const hour = currentDate.getHours();
     let timeOfDay = '';
 
     // Determine time of day based on more granular time slots
