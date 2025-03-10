@@ -17,13 +17,18 @@ const analyzeTextMood = async (req, res) => {
       if (!text) return res.status(400).json({ error: "Text input is required" });
       
       // Create form-urlencoded data instead of JSON
-      const params = new URLSearchParams();
-      params.append('text', text);
-      params.append('video_url', '');
-      params.append('bulk_upload_id', '');
-      params.append('callback_url', '');
+      // const params = new URLSearchParams();
+      // params.append('text', text);
+      // params.append('video_url', '');
+      // params.append('callback_url', '');
       
-      console.log("Sending to API:", params.toString());
+      // console.log("Sending to API:", params.toString());
+
+      const params = {
+        text: text,
+        video_url: '',
+        callback_url: ''
+      };
       
       const response = await axios.post(
         `${IMENTIV_API_URL}texts`,
@@ -31,7 +36,8 @@ const analyzeTextMood = async (req, res) => {
         { 
           headers: { 
             "X-API-Key": IMENTIV_API_KEY, 
-            "Content-Type": "application/x-www-form-urlencoded",
+            // "Content-Type": "application/x-www-form-urlencoded",
+            "Content-Type": "application/json",
             "accept": "application/json" 
           } 
         }
