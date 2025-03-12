@@ -190,7 +190,7 @@ async function updateUserStatus(userId, status) {
       userData.friends.forEach(friendId => {
         const friendSocketId = userSocketMap[friendId];
         if (friendSocketId) {
-          const io = require('socket.io').instance; // Get the singleton instance
+          // const io = require('socket.io').instance; // Get the singleton instance
           io.to(friendSocketId).emit('friend_status_change', {
             userId,
             status,
