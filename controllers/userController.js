@@ -416,6 +416,8 @@ const searchUsers = async (req, res) => {
     return res.status(400).send("Name parameter is required.");
   }
 
+  const currentUserId = req.user.uid
+
   try {
     // Query Firestore for users with the specified name
     const usersRef = db.collection("users"); // Assuming 'users' is your collection
@@ -426,23 +428,16 @@ const searchUsers = async (req, res) => {
       return res.status(404).send("No users found.");
     }
 
-    // if (snapshot.empty) {
-    //   return res.status(404).send('No users found with that name.');
-    // }
-    // const users = snapshot.docs
-    //   .map((doc) => doc.data())
-    //   .filter((user) =>
-    //     user.name.toLowerCase().includes(searchName.toLowerCase())
-    //   );
-
     const users = snapshot.docs
-      .map((doc) => ({
-        id: doc.id, // Get the document ID from Firestore
-        ...doc.data(), // Spread the document data
-      }))
-      .filter((user) =>
-        user.name.toLowerCase().includes(searchName.toLowerCase())
-      );
+    .map((doc) => ({
+      id: doc.id, // Firestore document ID
+      ...doc.data(),
+    }))
+    .filter(
+      (user) =>
+        user.name.toLowerCase().includes(searchName.toLowerCase()) &&
+        user.id !== currentUserId
+    );
 
     if (users.length === 0) {
       return res.status(404).send("No users found with that name.");
@@ -457,20 +452,7 @@ const searchUsers = async (req, res) => {
       country: user.country,
       gender: user.gender,
     }));
-    // Prepare the result array
-    // const users = [];
-    // snapshot.forEach(doc => {
-    //   const user = doc.data();
-    //   users.push({
-    //     id: doc.id,
-    //     name: user.name,
-    //     photoURL: user.photoURL, // Assuming you have a 'profilePic' field
-    //     age: user.age,
-    //     city: user.city,
-    //     country: user.country,
-    //     gender: user.gender
-    //   });
-    // });
+  
 
     // Send the found users back to the frontend
     res.json(resultUsers);
