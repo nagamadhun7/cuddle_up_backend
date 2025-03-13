@@ -48,7 +48,8 @@ exports.createMessage = async (req, res) => {
       senderId, 
       receiverId, 
       text, 
-      timestamp: new Date(),
+      // timestamp: new Date(),
+      timestamp,
       read: false
     });
   } catch (error) {
