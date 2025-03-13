@@ -1,5 +1,5 @@
-const { Server } = require('socket.io');
-const { db, admin } = require('../config/firebase');
+const { Server } = require("socket.io");
+const { db, admin } = require("../config/firebase");
 
 // Maps userId to socketId
 const userSocketMap = {};
@@ -9,149 +9,177 @@ exports.initializeSocket = (server) => {
   const io = new Server(server, {
     cors: {
       origin: process.env.CLIENT_URL || "http://localhost:3000",
+      // origin: '*',
+
       methods: ["GET", "POST"],
-      credentials: true
-    }
+      credentials: true,
+    },
   });
 
   // Socket.io connection
-  io.on('connection', (socket) => {
+  io.on("connection", (socket) => {
     // console.log('User connected:', socket.id);
-    
+
     // User authentication and online status
-    socket.on('user_online', (userId) => {
+    socket.on("user_online", (userId) => {
       userSocketMap[userId] = socket.id;
       // console.log(`User ${userId} is online with socket: ${socket.id}`);
-      
+
       // Update user status in Firestore
-      updateUserStatus(userId, 'active');
+      updateUserStatus(userId, "active");
     });
-    
+
     // Handle direct messages
-    socket.on('send_direct_message', async (messageData) => {
+    socket.on("send_direct_message", async (messageData) => {
       try {
         // Create conversation ID (sorted to ensure same ID regardless of sender/receiver order)
-        const participants = [messageData.senderId, messageData.receiverId].sort();
-        const conversationId = participants.join('_');
-        
+        const participants = [
+          messageData.senderId,
+          messageData.receiverId,
+        ].sort();
+        const conversationId = participants.join("_");
+
         // Save message to Firestore
-        await db.collection('messages').add({
+        await db.collection("messages").add({
           conversationId,
           senderId: messageData.senderId,
           receiverId: messageData.receiverId,
           text: messageData.text,
           timestamp: admin.firestore.FieldValue.serverTimestamp(),
-          read: false
+          read: false,
         });
-        
+
         // Send to receiver if online
         const receiverSocket = userSocketMap[messageData.receiverId];
         if (receiverSocket) {
-          io.to(receiverSocket).emit('receive_message', messageData);
-          
+          io.to(receiverSocket).emit("receive_message", messageData);
+
           // Also update unread count for receiver
-          io.to(receiverSocket).emit('unread_count_update', {
+          io.to(receiverSocket).emit("unread_count_update", {
             senderId: messageData.senderId,
-            count: 1 // Incremental update
+            count: 1, // Incremental update
           });
         }
-        
+
         // Also send back to sender for confirmation
-        socket.emit('message_sent', messageData);
+        socket.emit("message_sent", messageData);
       } catch (error) {
-        console.error('Error saving message:', error);
-        socket.emit('message_error', { error: 'Failed to send message' });
+        console.error("Error saving message:", error);
+        socket.emit("message_error", { error: "Failed to send message" });
       }
     });
-    
+
+    socket.on("update_mood", async (data) => {
+      const { userId, mood } = data;
+      
+      try {
+        await db.collection("users").doc(userId).update({ latestMood: mood });
+
+        const userDoc = await db.collection("users").doc(userId).get();
+        const userData = userDoc.data();
+
+        if (userData?.friends) {
+          userData.friends.forEach((friendId) => {
+            const friendSocketId = userSocketMap[friendId];
+            if (friendSocketId) {
+              console.log("Emitting mood_update to:", friendSocketId, { userId, mood });
+              io.to(friendSocketId).emit("update_mood", { userId, mood });
+            }
+          });
+        }
+      } catch (error) {
+        console.error("Error updating mood:", error);
+      }
+    });
+
     // Mark messages as read
-    socket.on('mark_as_read', async (data) => {
+    socket.on("mark_as_read", async (data) => {
       try {
         // Create conversation ID (sorted to ensure same ID regardless of sender/receiver order)
         const participants = [data.userId, data.friendId].sort();
-        const conversationId = participants.join('_');
-        
+        const conversationId = participants.join("_");
+
         // Update messages in Firestore
-        const messagesRef = db.collection('messages');
+        const messagesRef = db.collection("messages");
         const query = messagesRef
-          .where('conversationId', '==', conversationId)
-          .where('senderId', '==', data.friendId)
-          .where('receiverId', '==', data.userId)
-          .where('read', '==', false);
-        
+          .where("conversationId", "==", conversationId)
+          .where("senderId", "==", data.friendId)
+          .where("receiverId", "==", data.userId)
+          .where("read", "==", false);
+
         const unreadMessages = await query.get();
-        
+
         // Batch update to mark messages as read
         const batch = db.batch();
-        unreadMessages.forEach(doc => {
+        unreadMessages.forEach((doc) => {
           batch.update(doc.ref, { read: true });
         });
-        
+
         await batch.commit();
-        
+
         // Notify sender their messages were read
         const senderSocket = userSocketMap[data.friendId];
         if (senderSocket) {
-          io.to(senderSocket).emit('messages_read', {
+          io.to(senderSocket).emit("messages_read", {
             byUserId: data.userId,
-            conversationId
+            conversationId,
           });
         }
       } catch (error) {
-        console.error('Error marking messages as read:', error);
+        console.error("Error marking messages as read:", error);
       }
     });
-    
+
     // User typing indicator
-    socket.on('typing', (data) => {
+    socket.on("typing", (data) => {
       const receiverSocket = userSocketMap[data.receiverId];
       if (receiverSocket) {
-        io.to(receiverSocket).emit('friend_typing', {
+        io.to(receiverSocket).emit("friend_typing", {
           userId: data.senderId,
-          isTyping: data.isTyping
+          isTyping: data.isTyping,
         });
       }
     });
 
-     // Friend request events
-    socket.on('friend_request_sent', (data) => {
+    // Friend request events
+    socket.on("friend_request_sent", (data) => {
       const receiverSocketId = userSocketMap[data.receiverId];
       if (receiverSocketId) {
-        io.to(receiverSocketId).emit('friend_request_received', {
-          senderId: data.senderId
+        io.to(receiverSocketId).emit("friend_request_received", {
+          senderId: data.senderId,
         });
       }
     });
 
-    socket.on('friend_request_accepted', (data) => {
+    socket.on("friend_request_accepted", (data) => {
       const senderSocketId = userSocketMap[data.senderId];
       if (senderSocketId) {
-        io.to(senderSocketId).emit('friend_request_accepted', {
-          accepterId: data.accepterId
+        io.to(senderSocketId).emit("friend_request_accepted", {
+          accepterId: data.accepterId,
         });
       }
     });
-    
-    socket.on('friend_request_declined', (data) => {
+
+    socket.on("friend_request_declined", (data) => {
       const senderSocketId = userSocketMap[data.senderId];
       if (senderSocketId) {
-        io.to(senderSocketId).emit('friend_request_declined', {
-          declinerId: data.declinerId
+        io.to(senderSocketId).emit("friend_request_declined", {
+          declinerId: data.declinerId,
         });
       }
     });
-    
-    socket.on('friend_request_canceled', (data) => {
+
+    socket.on("friend_request_canceled", (data) => {
       const receiverSocketId = userSocketMap[data.receiverId];
       if (receiverSocketId) {
-        io.to(receiverSocketId).emit('friend_request_canceled', {
-          senderId: data.senderId
+        io.to(receiverSocketId).emit("friend_request_canceled", {
+          senderId: data.senderId,
         });
       }
     });
-    
+
     // Disconnect
-    socket.on('disconnect', () => {
+    socket.on("disconnect", () => {
       // Find which user disconnected
       let disconnectedUserId = null;
       for (const [userId, socketId] of Object.entries(userSocketMap)) {
@@ -161,9 +189,9 @@ exports.initializeSocket = (server) => {
           break;
         }
       }
-      
+
       if (disconnectedUserId) {
-        updateUserStatus(disconnectedUserId, 'inactive');
+        updateUserStatus(disconnectedUserId, "inactive");
         console.log(`User ${disconnectedUserId} disconnected`);
       }
     });
@@ -176,22 +204,22 @@ exports.initializeSocket = (server) => {
 async function updateUserStatus(userId, status) {
   try {
     // Update user status in Firestore
-    await db.collection('users').doc(userId).update({
+    await db.collection("users").doc(userId).update({
       status: status,
       // lastSeen: admin.firestore.FieldValue.serverTimestamp()
     });
-    
+
     // Get user's friends
-    const userDoc = await db.collection('users').doc(userId).get();
+    const userDoc = await db.collection("users").doc(userId).get();
     const userData = userDoc.data();
-    
+
     if (userData && userData.friends) {
       // Notify each online friend about status change
-      userData.friends.forEach(friendId => {
+      userData.friends.forEach((friendId) => {
         const friendSocketId = userSocketMap[friendId];
         if (friendSocketId) {
           // const io = require('socket.io').instance; // Get the singleton instance
-          io.to(friendSocketId).emit('friend_status_change', {
+          io.to(friendSocketId).emit("friend_status_change", {
             userId,
             status,
             // lastSeen: new Date()
@@ -200,6 +228,6 @@ async function updateUserStatus(userId, status) {
       });
     }
   } catch (error) {
-    console.error('Error updating user status:', error);
+    console.error("Error updating user status:", error);
   }
 }

@@ -309,6 +309,34 @@ const storeMood = async (req, res) => {
   }
 };
 
+
+const getLatestMood = async(req,res) => {
+  try {
+    const { userId } = req.params;
+    const userDoc = await db.collection("users").doc(userId).get();
+    const userData = userDoc.data();
+
+    if (!userData?.friends) return res.json({ friends: [] });
+
+    const friendMoods = await Promise.all(
+      userData.friends.map(async (friendId) => {
+        const friendDoc = await db.collection("users").doc(friendId).get();
+        const friendData = friendDoc.data();
+        return {
+          id: friendId,
+          name: friendData?.name || "Unknown",
+          latestMood: friendData?.latestMood || "Unknown",
+        };
+      })
+    );
+
+    res.json({ friends: friendMoods });
+  } catch (error) {
+    console.error("Error fetching moods:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+}
+
 const deleteUser = async (req, res) => {
   const uid = req.user.uid;
 
@@ -826,6 +854,7 @@ module.exports = {
   acceptFriendRequest,
   cancelFriendRequest,
   declineFriendRequest,
-  getUserProfile
+  getUserProfile,
+  getLatestMood
 };
 
