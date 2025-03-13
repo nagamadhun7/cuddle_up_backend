@@ -1,5 +1,5 @@
 const express = require("express");
-const { registerUser,declineFriendRequest, deleteUser, getUser,getLatestMood,cancelFriendRequest, updateUser,getFriendsData,acceptFriendRequest, storeMood,sendFriendRequest, changeProfilePic,updateStatus,searchUsers, upload, getUnreadCounts, getUserProfile } = require("../controllers/userController");
+const { registerUser,declineFriendRequest, deleteUser, getUser,getLatestMood,cancelFriendRequest, updateUser,getFriendsData,acceptFriendRequest, storeMood,sendFriendRequest, changeProfilePic,updateStatus,searchUsers, upload, getUnreadCounts, getUserProfile,removeFriend } = require("../controllers/userController");
 const verifyToken = require("../middlewares/authMiddleware");
 
 const router = express.Router();
@@ -20,5 +20,7 @@ router.post('/cancelFriendRequest',verifyToken, cancelFriendRequest)
 router.post('/declineFriendRequest',verifyToken, declineFriendRequest)
 router.get('/getUserProfile/:userId',verifyToken,getUserProfile)
 router.get('/getLatestMood/:userId',verifyToken,getLatestMood)
+router.post('/removeFriend',verifyToken,removeFriend)
+
 
 module.exports = router;

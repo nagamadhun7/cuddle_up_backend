@@ -8,8 +8,8 @@ const userSocketMap = {};
 exports.initializeSocket = (server) => {
   const io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || "http://localhost:3000",
-      // origin: '*',
+      // origin: process.env.CLIENT_URL || "http://localhost:3000",
+      origin: '*',
 
       methods: ["GET", "POST"],
       credentials: true,
@@ -177,6 +177,23 @@ exports.initializeSocket = (server) => {
         });
       }
     });
+
+    socket.on("remove_friend", (data) => {
+      const senderSocketId = userSocketMap[data.senderId];
+      const receiverSocketId = userSocketMap[data.receiverId];
+    
+      if (senderSocketId && receiverSocketId) {
+        // Emit the remove friend event to both users
+        io.to(senderSocketId).emit("remove_friend", {
+          receiverId: data.receiverId,
+        });
+    
+        io.to(receiverSocketId).emit("remove_friend", {
+          senderId: data.senderId,
+        });
+      }
+    });
+    
 
     // Disconnect
     socket.on("disconnect", () => {

@@ -737,6 +737,54 @@ const cancelFriendRequest = async (req, res) => {
 };
 
 
+const removeFriend = async (req, res) => {
+  try {
+    // Authenticate user
+    const receiverId = req.user?.uid;
+    const {friendId}  = req.body;
+  
+
+    if (!friendId) {
+      return res.status(400).json({ error: "Friend ID is required" });
+    }
+
+    // Check if users exist
+    const receiverDoc = await db.collection("users").doc(receiverId).get();
+    const friendDoc = await db.collection("users").doc(friendId).get();
+
+    if (!receiverDoc.exists || !friendDoc.exists) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const receiverData = receiverDoc.data();
+    const friendData = friendDoc.data();
+
+    // Check if they are actually friends
+    if (
+      !receiverData.friends.includes(friendId) || 
+      !friendData.friends.includes(receiverId)
+    ) {
+      return res.status(400).json({ error: "Not friends" });
+    }
+
+    // Remove each other from their friends arrays
+    await db.collection("users").doc(receiverId).update({
+      friends: admin.firestore.FieldValue.arrayRemove(friendId),
+    });
+
+    await db.collection("users").doc(friendId).update({
+      friends: admin.firestore.FieldValue.arrayRemove(receiverId),
+    });
+
+    return res.status(200).json({ message: "Friend removed successfully" });
+  } catch (error) {
+    console.error("Error removing friend:", error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
+
+
 
 const declineFriendRequest = async (req, res) => {
   try {
@@ -837,6 +885,7 @@ module.exports = {
   cancelFriendRequest,
   declineFriendRequest,
   getUserProfile,
-  getLatestMood
+  getLatestMood,
+  removeFriend
 };
 
