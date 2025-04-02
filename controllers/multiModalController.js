@@ -5,7 +5,10 @@ const FormData = require("form-data"); // Use the form-data package instead of g
 const upload = multer({ storage: multer.memoryStorage() });
 
 const IMENTIV_API_URL = "https://api.imentiv.ai/v1/";
-const IMENTIV_API_KEY = "LUqQDGJYJ-WbhMBhp0sGmvnt8qpkRajh_u5N52bQhHLeB7CqaLG-1x7seRGV1c7RplE";
+// const IMENTIV_API_KEY = "LUqQDGJYJ-WbhMBhp0sGmvnt8qpkRajh_u5N52bQhHLeB7CqaLG-1x7seRGV1c7RplE";
+const IMENTIV_API_KEY = "1u7YuLajLDXPQclJ-2_YKEJ2-YpwZy4Y73ZdpN45M4EP6OKyKpWGWsYUDQI4fdj9c1M";
+
+
 
 const analyzeTextMood = async (req, res) => {
     try {
